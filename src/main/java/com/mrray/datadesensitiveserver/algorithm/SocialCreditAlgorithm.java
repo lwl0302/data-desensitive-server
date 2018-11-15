@@ -108,7 +108,7 @@ public class SocialCreditAlgorithm implements BaseAlgorithm {
         return eighteenStr;
     }
 
-    public List<String> socialCreditone(List<String> values, String mask) {
+    public List<String> socialCreditone(List<String> values) {
         List<String> result = new ArrayList<>();
         for (String value : values) {
             if (StringUtils.isBlank(value)) {
@@ -117,14 +117,14 @@ public class SocialCreditAlgorithm implements BaseAlgorithm {
             }
             int length = value.length();
             if (length == 18) {
-                value = value.substring(0, 8) + SysUtils.buildMask(mask, 9) + value.substring(17);
+                value = value.substring(0, 8) + SysUtils.buildMask("*", 9) + value.substring(17);
             }
             result.add(value);
         }
         return result;
     }
 
-    public List<String> socialCredittwo(List<String> values, String mask) {
+    public List<String> socialCredittwo(List<String> values) {
         List<String> result = new ArrayList<>();
         for (String value : values) {
             if (StringUtils.isBlank(value)) {
@@ -133,7 +133,7 @@ public class SocialCreditAlgorithm implements BaseAlgorithm {
             }
             int length = value.length();
             if (length == 18) {
-                value = value.substring(0, 2) + SysUtils.buildMask(mask, 15) + value.substring(17);
+                value = value.substring(0, 2) + SysUtils.buildMask("*", 15) + value.substring(17);
             }
             result.add(value);
         }

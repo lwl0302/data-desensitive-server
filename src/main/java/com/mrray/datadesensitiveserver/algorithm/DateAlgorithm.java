@@ -113,10 +113,10 @@ public class DateAlgorithm implements BaseAlgorithm {
                 if (value.contains(":")) {
                     value = "00:00:00";
                 } else {
-                    value = "1970-01-01";
+                    value = "2018-01-01";
                 }
             } else {
-                value = "1970-01-01 00:00:00";
+                value = "2018-01-01 00:00:00";
             }
             result.add(value);
         }

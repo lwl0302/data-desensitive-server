@@ -1,28 +1,19 @@
 package com.mrray.datadesensitiveserver.service.impl;
 
 import com.alibaba.fastjson.JSONObject;
-import com.mrray.datadesensitiveserver.algorithm.BaseAlgorithm;
 import com.mrray.datadesensitiveserver.entity.domain.Algorithm;
-import com.mrray.datadesensitiveserver.entity.domain.Mode;
 import com.mrray.datadesensitiveserver.entity.domain.ScanRecord;
-import com.mrray.datadesensitiveserver.entity.dto.*;
-import com.mrray.datadesensitiveserver.entity.vo.ModeVo;
+import com.mrray.datadesensitiveserver.entity.dto.SetColumnsDto;
 import com.mrray.datadesensitiveserver.entity.vo.RestResponseBody;
 import com.mrray.datadesensitiveserver.repository.AlgorithmRepository;
 import com.mrray.datadesensitiveserver.repository.DesensitiveRecordRepository;
 import com.mrray.datadesensitiveserver.repository.ScanRecordRepository;
-import com.mrray.datadesensitiveserver.service.DatasourceManagementService;
 import com.mrray.datadesensitiveserver.service.ScanService;
-import com.mrray.datadesensitiveserver.utils.DatabaseUtils;
-import com.mrray.datadesensitiveserver.utils.SysUtils;
-import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.sql.Connection;
-import java.sql.SQLException;
 import java.util.*;
 
 @Service
@@ -33,17 +24,17 @@ public class ScanServiceImpl implements ScanService {
     private final AlgorithmRepository algorithmRepository;
     private final ScanRecordRepository scanRecordRepository;
     private final DesensitiveRecordRepository desensitiveRecordRepository;
-    private final DatasourceManagementService datasourceManagementService;
+    //private final DatasourceManagementService datasourceManagementService;
 
     @Autowired
-    public ScanServiceImpl(AlgorithmRepository algorithmRepository, ScanRecordRepository scanRecordRepository, DesensitiveRecordRepository desensitiveRecordRepository, DatasourceManagementService datasourceManagementService) {
+    public ScanServiceImpl(AlgorithmRepository algorithmRepository, ScanRecordRepository scanRecordRepository, DesensitiveRecordRepository desensitiveRecordRepository) {
         this.algorithmRepository = algorithmRepository;
         this.scanRecordRepository = scanRecordRepository;
         this.desensitiveRecordRepository = desensitiveRecordRepository;
-        this.datasourceManagementService = datasourceManagementService;
+        //this.datasourceManagementService = datasourceManagementService;
     }
 
-    @Override
+    /*@Override
     public RestResponseBody scan(ScanDto scanDto) {
         //List<Map<String, Object>> result = new ArrayList<>();
         RestResponseBody restResponseBody = new RestResponseBody<>();
@@ -121,9 +112,9 @@ public class ScanServiceImpl implements ScanService {
         DatabaseUtils.deleteTable(connection, databaseInfo.getTableName());
         DatabaseUtils.closeConnection(connection);
         return restResponseBody;
-    }
+    }*/
 
-    @Override
+    /*@Override
     public RestResponseBody scanSingle(ScanSingleDto scanSingleDto) {
         Map<String, Object> result = new HashMap<>();
         RestResponseBody restResponseBody = new RestResponseBody<>().setData(result);
@@ -229,7 +220,7 @@ public class ScanServiceImpl implements ScanService {
         DatabaseUtils.deleteTable(connection, databaseInfo.getTableName());
         DatabaseUtils.closeConnection(connection);
         return restResponseBody;
-    }
+    }*/
 
     @Override
     public RestResponseBody column(SetColumnsDto setColumnsDto) {

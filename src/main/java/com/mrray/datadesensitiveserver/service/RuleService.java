@@ -7,7 +7,7 @@ import com.mrray.datadesensitiveserver.entity.vo.RestResponseBody;
 public interface RuleService {
     RestResponseBody getRuleList(RuleQueryDto ruleQueryDto);
 
-    RestResponseBody postRule(RuleDto ruleDto);
+    //RestResponseBody postRule(RuleDto ruleDto);
 
     RestResponseBody putRule(String uuid, RuleDto ruleDto);
 

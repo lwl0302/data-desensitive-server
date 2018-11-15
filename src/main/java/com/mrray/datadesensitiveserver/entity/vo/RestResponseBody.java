@@ -19,8 +19,9 @@ public class RestResponseBody<T> {
         return message;
     }
 
-    public void setMessage(String message) {
+    public RestResponseBody setMessage(String message) {
         this.message = message;
+        return this;
     }
 
     public String getError() {

@@ -47,7 +47,7 @@ public class NameAlgorithm implements BaseAlgorithm {
         return nonRepetitive >= 100 || count > 0.5 * values.size();
     }
 
-    public List<String> nameone(List<String> values, String mask) {
+    public List<String> nameone(List<String> values) {
         List<String> result = new ArrayList<>();
         for (String value : values) {
             if (StringUtils.isBlank(value)) {
@@ -57,21 +57,21 @@ public class NameAlgorithm implements BaseAlgorithm {
             int length = value.length();
             StringBuilder temp = new StringBuilder(value.substring(0, 1));
             for (int i = 0; i < length - 1; i++) {
-                temp.append(mask);
+                temp.append("*");
             }
             result.add(temp.toString());
         }
         return result;
     }
 
-    public List<String> nametwo(List<String> values, String mask) {
+    public List<String> nametwo(List<String> values) {
         List<String> result = new ArrayList<>();
         for (String value : values) {
             if (StringUtils.isBlank(value)) {
                 result.add(value);
                 continue;
             }
-            value = value.substring(0, 1) + SysUtils.buildMask(mask, 2);
+            value = value.substring(0, 1) + SysUtils.buildMask("*", 2);
             result.add(value);
         }
         return result;

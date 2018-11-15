@@ -1,304 +1,285 @@
 package com.mrray.datadesensitiveserver.async;
 
-import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.mrray.datadesensitiveserver.algorithm.BaseAlgorithm;
-import com.mrray.datadesensitiveserver.entity.domain.*;
-import com.mrray.datadesensitiveserver.entity.dto.DatabaseInfo;
-import com.mrray.datadesensitiveserver.entity.vo.RestResponseBody;
-import com.mrray.datadesensitiveserver.repository.*;
-import com.mrray.datadesensitiveserver.service.TaskManagementService;
-import com.mrray.datadesensitiveserver.utils.DatabaseUtils;
+import com.mrray.datadesensitiveserver.entity.domain.Algorithm;
+import com.mrray.datadesensitiveserver.entity.domain.Mode;
+import com.mrray.datadesensitiveserver.entity.dto.TaskDto;
+import com.mrray.datadesensitiveserver.entity.vo.TaskVo;
+import com.mrray.datadesensitiveserver.repository.AlgorithmRepository;
+import com.mrray.datadesensitiveserver.repository.ModeRepository;
 import com.mrray.datadesensitiveserver.utils.SysUtils;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.scheduling.annotation.AsyncResult;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
 
-import java.math.BigDecimal;
-import java.sql.Connection;
-import java.sql.SQLException;
 import java.util.*;
-import java.util.concurrent.Future;
 
 @Component
 public class AsyncTasks {
     @Value("${constant.rows}")
     private int rows;//单次处理行数
-    //private static final String PACKAGE = "com.mrray.datadesensitiveserver.algorithm.";
-    private final RuleRepository ruleRepository;
     private final AlgorithmRepository algorithmRepository;
-    private final ScanRecordRepository scanRecordRepository;
     private final ModeRepository modeRepository;
-    private final TaskManagementService taskManagementService;
-    private final DesensitiveRecordRepository desensitiveRecordRepository;
     //private static final List<String> SUPPORT = Arrays.asList("INT", "VARCHAR", "DATETIME", "DATE", "TIME", "TIMESTAMP", "YEAR", "TINYTEXT", "TEXT", "MEDIUMTEXT", "LONGTEXT", "BIGINT");
     private static Logger logger = LoggerFactory.getLogger("AsyncTasks");
+    @Value("${daas-uri}")
+    private String daasUri;
+    @Value("${constant.samples}")
+    private int samples;
+    private static RestTemplate restTemplate = new RestTemplate();
+    private static final String PACKAGE = "com.mrray.datadesensitiveserver.algorithm.";
 
     @Autowired
-    public AsyncTasks(RuleRepository ruleRepository, AlgorithmRepository algorithmRepository, ScanRecordRepository scanRecordRepository, ModeRepository modeRepository, TaskManagementService taskManagementService, DesensitiveRecordRepository desensitiveRecordRepository) {
-        this.ruleRepository = ruleRepository;
+    public AsyncTasks(AlgorithmRepository algorithmRepository, ModeRepository modeRepository) {
         this.algorithmRepository = algorithmRepository;
-        this.scanRecordRepository = scanRecordRepository;
         this.modeRepository = modeRepository;
-        this.taskManagementService = taskManagementService;
-        this.desensitiveRecordRepository = desensitiveRecordRepository;
+        //this.taskManagementService = taskManagementService;
     }
 
     @Async
-    public Future<RestResponseBody> process(DatabaseInfo databaseInfo, String ruleId, String newTableName, String recordUuid, String scan) {
-        RestResponseBody<Map<String, Object>> restResponseBody = new RestResponseBody<>();
-        AsyncResult<RestResponseBody> asyncResult = new AsyncResult<>(restResponseBody);
-        String tableName = databaseInfo.getTableName();
-        Map<String, Object> progress = new HashMap<>();
-        progress.put("recordUuid", recordUuid);
-        progress.put("mainTaskId", databaseInfo.getMainTaskId());
-        databaseInfo.setTableName(newTableName);
-        progress.put("databaseInfo", databaseInfo);
-        restResponseBody.setData(progress);
-
-        //连接到数据库
-        Connection connection = DatabaseUtils.connect(databaseInfo);
-        if (connection == null) {
-            restResponseBody.setError("无法连接到中间库");
-            taskManagementService.desensitive(restResponseBody);
-            return asyncResult;
+    public void process(TaskDto taskDto, Map<String, String> modesMap) {
+        TaskVo taskVo = new TaskVo();
+        BeanUtils.copyProperties(taskDto, taskVo);
+        taskVo.setMediumType(Integer.valueOf(taskDto.getMediumType()));
+        List<Map<String, Object>> columns = new ArrayList<>();
+        //获取样本数据
+        String mediumType = taskDto.getMediumType();
+        String dataSetId = taskDto.getDataSetId();
+        String taskId = taskDto.getTaskId();
+        Map<String, Object> sampleData = getData(dataSetId, mediumType, columns, 1, samples);
+        if (sampleData == null) {
+            logger.error("failed to get samples");
+            recall(taskVo.setStatus(500));
+            return;
         }
-
-        //创建脱敏结果表
-        boolean createTable = DatabaseUtils.createTable(connection, tableName, newTableName);
-        if (!createTable) {
-            DatabaseUtils.closeConnection(connection);
-            restResponseBody.setError("建立脱敏结果表失败");
-            taskManagementService.desensitive(restResponseBody);
-            return asyncResult;
-        }
-
         //获取目标表行数
-        Long total = DatabaseUtils.getRows(connection, tableName);
-        if (total == 0) {
-            DatabaseUtils.closeConnection(connection);
-            taskManagementService.desensitive(restResponseBody);
-            return asyncResult;
-        }
+        int total = (int) sampleData.get("total");
+        //String sinkTableName = (String) sampleData.get("sinkTableName");
+        String sinkTableName = getSinkTableName(dataSetId, mediumType, taskId);
+        taskVo.setSinkCatalog(sinkTableName);
         logger.info("行数 " + total);
+        //敏感字段识别
+        match(columns);
 
-        String algorithmKey = "algorithm";
-        List<Map<String, Object>> columns;
-        Long sensitive = 0L;
-        //获取column信息
-        try {
-            columns = DatabaseUtils.getColumns(connection, databaseInfo);
-        } catch (SQLException e) {
-            DatabaseUtils.closeConnection(connection);
-            restResponseBody.setError("获取字段信息异常");
-            taskManagementService.desensitive(restResponseBody);
-            return asyncResult;
+        //添加算法、脱敏方式到column信息
+        for (Map<String, Object> column : columns) {
+            if (!column.containsKey("algorithm")) {
+                continue;
+            }
+            String algorithmId = (String) column.get("algorithm");
+            Algorithm algorithm = algorithmRepository.findByUuid(algorithmId);
+            column.put("algorithm", algorithm.getClassName());
+            Mode mode = modeRepository.findByUuid(modesMap.get(algorithmId));
+            column.put("mode", mode.getMethodName());
+            //column.put("args", new JSONArray());
+            //if (modesMap.containsKey(algorithmId + "arg")) {
+            //    ((JSONArray) column.get("args")).add(modesMap.get(algorithmId + "arg"));
+            //}
         }
 
-        if (StringUtils.isNotBlank(ruleId)) {
-            //查询扫描记录
-            ScanRecord scanRecord = scanRecordRepository.findByUuid(scan);
-            if (scanRecord == null) {
-                DatabaseUtils.closeConnection(connection);
-                restResponseBody.setError("获取扫描结果失败");
-                taskManagementService.desensitive(restResponseBody);
-                return asyncResult;
-            }
-            Map<String, String> result = (Map<String, String>) JSONObject.parse(scanRecord.getResult());
-
-            //查询脱敏规则
-            Rule rule = ruleRepository.findByUuid(ruleId);
-            if (rule == null) {
-                DatabaseUtils.closeConnection(connection);
-                restResponseBody.setError("获取脱敏规则失败");
-                taskManagementService.desensitive(restResponseBody);
-                return asyncResult;
-            }
-            Map<String, String> details = (Map<String, String>) JSONObject.parse(rule.getDetails());
-
-            //添加算法、脱敏方式到column信息
-            for (Map<String, Object> column : columns) {
-                String columnName = (String) column.get("columnName");
-                String uuid = result.get(columnName);
-                column.put(algorithmKey, "");
-                column.put("mode", "");
-                column.put("args", new JSONArray());
-                if ("".equals(uuid)) {
-                    continue;
-                }
-                sensitive++;
-                Algorithm algorithm = algorithmRepository.findByUuid(uuid);
-                String auuid = algorithm.getUuid();
-                column.put(algorithmKey, algorithm.getClassName());
-                Mode mode = modeRepository.findByUuid(details.get(auuid));
-                column.put("mode", mode.getMethodName());
-                if (details.containsKey(auuid + "arg")) {
-                    JSONArray array = new JSONArray();
-                    array.add(details.get(auuid + "arg"));
-                    column.put("args", array);
-                }
-            }
-        } else if (StringUtils.isNotBlank(scan)) {
-            ScanRecord scanRecord = scanRecordRepository.findByUuid(scan);
-            if (scanRecord == null) {
-                DatabaseUtils.closeConnection(connection);
-                restResponseBody.setError("获取扫描信息异常");
-                taskManagementService.desensitive(restResponseBody);
-                return asyncResult;
-            }
-            logger.info("scan record " + scanRecord.getUuid());
-            List<Map<String, Object>> tempColumns = (List<Map<String, Object>>) JSONObject.parse(scanRecord.getColumns());
-            Set<String> columnNames = new HashSet<>();
-            for (Map<String, Object> column : columns) {
-                columnNames.add((String) column.get("columnName"));
-            }
-            columns.clear();
-            for (Map<String, Object> column : tempColumns) {
-                if (columnNames.contains(column.get("columnName"))) {
-                    columns.add(column);
-                    if (StringUtils.isNotEmpty((String) column.get("algorithm"))) {
-                        sensitive++;
-                    }
-                }
-            }
-        } else {
-            DatabaseUtils.closeConnection(connection);
-            restResponseBody.setError("Failed to get scan record !");
-            taskManagementService.desensitive(restResponseBody);
-            return asyncResult;
-        }
         //分段执行脱敏
-        String valuesKey = "values";
-        Double percent = 0d;
-        Double part = (double) rows / (double) total * 100;
-        Long time = total / rows;
-        if (total % rows != 0) {
-            time++;
-        }
-        int offset = 0;
-        long count = total * sensitive;
+        int page = 1;
         while (total > 0) {
+            int size;
+            if (total < rows) {
+                size = total;
+            } else {
+                size = rows;
+            }
             //查询数据放入columns
-            try {
-                DatabaseUtils.getValues(connection, columns, tableName, offset, rows);
-            } catch (SQLException e) {
-                DatabaseUtils.closeConnection(connection);
-                restResponseBody.setError("查询数据异常");
-                taskManagementService.desensitive(restResponseBody);
-                return asyncResult;
+            Map<String, Object> data = getData(dataSetId, mediumType, columns, page, rows);
+            if (data == null) {
+                logger.error("failed to get data");
+                recall(taskVo.setStatus(500));
+                return;
             }
             logger.info("get value success");
-            int size = 0;
             for (Map<String, Object> column : columns) {
-                //非SUPPORT类型暂不做处理
-                //if (!SUPPORT.contains(column.get("columnType"))) {
-                //    continue;
-                //}
-                List<String> values = (List<String>) column.get(valuesKey);
-                size = values.size();
-                String mode = (String) column.get("mode");
-                if ("".equals(mode)) {
+                if (!column.containsKey("mode")) {
                     continue;
                 }
-                String algorithm = (String) column.get(algorithmKey);
-                JSONArray args = (JSONArray) column.get("args");
-                if (args == null) {
-                    restResponseBody.setError("Failed to get algorithm args !");
-                    taskManagementService.desensitive(restResponseBody);
-                    return asyncResult;
-                }
-                Object[] objects = new Object[args.size()];
-                for (int i = 0; i < args.size(); i++) {
-                    objects[i] = args.get(i);
-                }
+                List<String> values = (List<String>) column.get("values");
+                String mode = (String) column.get("mode");
+                String algorithm = (String) column.get("algorithm");
+                //JSONArray args = (JSONArray) column.get("args");
+                //Object[] objects = new Object[args.size()];
+                //for (int i = 0; i < args.size(); i++) {
+                //    objects[i] = args.get(i);
+                //}
                 logger.info("algorithm " + algorithm + " mode " + mode);
                 //多态+反射执行单列脱敏
                 try {
                     Class<?> aClass = SysUtils.getClazz(algorithm);
                     //Class<?> aClass = null;
-                    if (aClass == null) {
-                        logger.info("class null");
-                        column.put(valuesKey, values);
+                    if (aClass == null || StringUtils.isBlank(mode)) {
+                        logger.info("class null or mode null");
+                        column.put("values", values);
                         continue;
                     }
                     logger.info("class " + aClass.getName());
                     BaseAlgorithm baseAlgorithm = (BaseAlgorithm) aClass.newInstance();
-                    values = baseAlgorithm.desensitive(values, mode, objects);
-                    column.put(valuesKey, values);
+                    values = baseAlgorithm.desensitive(values, mode);
+                    column.put("values", values);
                 } catch (Throwable e) {
-                    DatabaseUtils.closeConnection(connection);
-                    logger.error(e.getMessage());
-                    restResponseBody.setError("脱敏算法调用异常");
-                    taskManagementService.desensitive(restResponseBody);
-                    return asyncResult;
+                    e.printStackTrace();
+                    logger.error("fail");
+                    recall(taskVo.setStatus(500));
+                    return;
                 }
             }
             //将列数组转为行数组
-            List<List<String>> valuesToInsert = new ArrayList<>();
+            List<Map<Object, String>> valuesToInsert = new ArrayList<>();
             for (int i = 0; i < size; i++) {
-                List<String> row = new ArrayList<>();
+                Map<Object, String> row = new LinkedHashMap<>();
                 for (Map<String, Object> column : columns) {
-                    List<String> values = (List<String>) column.get(valuesKey);
+                    List<String> values = (List<String>) column.get("values");
+                    Object columnName = column.get("columnName");
                     if (values.size() > i) {
-                        row.add(values.get(i));
+                        row.put(columnName, values.get(i));
                     } else {
-                        row.add(null);
+                        row.put(columnName, null);
                     }
 
                 }
                 valuesToInsert.add(row);
             }
-            try {
-                DatabaseUtils.insert(connection, newTableName, valuesToInsert, columns.size());
-            } catch (SQLException e) {
-                DatabaseUtils.closeConnection(connection);
-                logger.error("数据插入异常");
-                restResponseBody.setError("数据插入异常");
-                taskManagementService.desensitive(restResponseBody);
-                return asyncResult;
-            }
-            offset += rows;
+            saveData(valuesToInsert, dataSetId, sinkTableName, mediumType);
             total -= rows;
-            time--;
-            percent += part;
-            if (time == 0) {
-                percent = 100d;
-            }
-            BigDecimal bigDecimal = BigDecimal.valueOf(percent);
-            progress.put("percent", bigDecimal.setScale(2, BigDecimal.ROUND_DOWN).doubleValue());
+            page++;
         }
-        try {
-            taskManagementService.desensitive(restResponseBody);
-        } catch (Exception e) {
-            logger.error(e.getMessage());
-        }
-        //DatabaseUtils.deleteTable(connection, tableName);
-        DatabaseUtils.closeConnection(connection);
-        DesensitiveRecord desensitiveRecord = desensitiveRecordRepository.findByUuid(recordUuid);
-        desensitiveRecord.setResult("success");
-        desensitiveRecord.setCounts(count);
-        desensitiveRecordRepository.saveAndFlush(desensitiveRecord);
-        return asyncResult;
+        recall(taskVo.setStatus(200));
     }
 
-    /*public static void main(String[] args) throws Exception {
-        byte[] lwl = EncrypDES.Encrytor("lwl");
-        byte[] lwl3 = Encryp3DES.Encrytor("lwl");
-        byte[] lwla = EncrypAES.Encrytor("lwl");
-        String s = SysUtils.encryptBASE64(lwl);
-        String s1 = SysUtils.encryptBASE64(lwl3);
-        String sa = SysUtils.encryptBASE64(lwla);
-        System.out.println(s);
-        System.out.println(s1);
-        System.out.println(sa);
-        System.out.println(new String(EncrypDES.Decryptor(SysUtils.decryptBASE64(s))));
-        System.out.println(new String(Encryp3DES.Decryptor(SysUtils.decryptBASE64(s1))));
-        System.out.println(new String(EncrypAES.Decryptor(SysUtils.decryptBASE64(sa))));
-        //System.out.println(new String(EncrypDES.Decryptor(SysUtils.decryptBASE64("JKScmolwQSI="))));
-    }*/
+    private Map<String, Object> getData(String dataSetId, String mediumType, List<Map<String, Object>> columns, int page, int size) {
+        HttpHeaders headers = new HttpHeaders();
+        MediaType type = MediaType.parseMediaType("application/json; charset=UTF-8");
+        headers.setContentType(type);
+        headers.add("Accept", MediaType.APPLICATION_JSON.toString());
+        Map<String, Object> parameter = new HashMap<>();
+        parameter.put("dataSetId", dataSetId);
+        parameter.put("mediumType", mediumType);
+        parameter.put("pagenum", page);
+        parameter.put("pagesize", size);
+        String jsonObj = JSONObject.toJSONString(parameter);
+        HttpEntity<String> requestEntity = new HttpEntity<>(jsonObj, headers);
+        ResponseEntity<String> response = restTemplate.exchange("http://" + daasUri + "/api/v2/daas/meta/dataQuality/getDataByDataSetId", HttpMethod.POST, requestEntity, String.class);
+        Map map = JSON.parseObject(response.getBody(), Map.class);
+        if ((int) map.get("code") == 200) {
+            Map<String, Object> data = (Map<String, Object>) ((Map<String, Object>) map.get("result")).get("data");
+            List<Map> datas = (List<Map>) data.get("datas");
+            if (datas.size() > 0) {
+                Map<String, Object> result = new HashMap<>();
+                result.put("total", data.get("totalNum"));
+                //result.put("sinkTableName", data.get("sinkTableName"));
+                result.put("columnInfos", columns);
+                if (columns.size() == 0) {
+                    for (String field : (List<String>) data.get("fields")) {
+                        Map<String, Object> column = new HashMap<>();
+                        column.put("columnName", field);
+                        column.put("values", new ArrayList<>());
+                        columns.add(column);
+                    }
+                    /*for (Object key : datas.get(0).keySet()) {
+                        Map<String, Object> column = new HashMap<>();
+                        column.put("columnName", key);
+                        column.put("values", new ArrayList<>());
+                        columns.add(column);
+                    }*/
+                } else {
+                    for (Map<String, Object> column : columns) {
+                        column.put("values", new ArrayList<>());
+                    }
+                }
+                for (Map row : datas) {
+                    for (Map<String, Object> column : columns) {
+                        Object value = row.get(column.get("columnName"));
+                        List<String> values = (List<String>) column.get("values");
+                        if (value == null) {
+                            values.add(null);
+                        } else {
+                            values.add(value.toString());
+                        }
+                    }
+                }
+                return result;
+            }
+        }
+        return null;
+    }
+
+    private void match(List<Map<String, Object>> columns) {
+        List<Algorithm> algorithms = algorithmRepository.findAllByOriginalTrueOrderByPriorityAsc();
+        for (Map<String, Object> column : columns) {
+            List<String> values = (List<String>) column.get("values");
+            for (Algorithm algorithm : algorithms) {
+                String className = PACKAGE + algorithm.getClassName();
+                boolean match;
+                try {
+                    Class<?> aClass = Class.forName(className);
+                    BaseAlgorithm baseAlgorithm = (BaseAlgorithm) aClass.newInstance();
+                    match = baseAlgorithm.match(values);
+                } catch (Exception e) {
+                    return;
+                }
+                if (match) {
+                    column.put("algorithm", algorithm.getUuid());
+                    break;
+                }
+            }
+        }
+    }
+
+    private void saveData(List<Map<Object, String>> datas, String dataSetId, String sinkTableName, String mediumType) {
+        HttpHeaders headers = new HttpHeaders();
+        MediaType type = MediaType.parseMediaType("application/json; charset=UTF-8");
+        headers.setContentType(type);
+        headers.add("Accept", MediaType.APPLICATION_JSON.toString());
+        Map<String, Object> parameter = new HashMap<>();
+        parameter.put("dataSetId", dataSetId);
+        parameter.put("sinkTableName", sinkTableName);
+        parameter.put("mediumType", mediumType);
+        parameter.put("desensitizationData", datas);
+        String jsonObj = JSONObject.toJSONString(parameter);
+        HttpEntity<String> requestEntity = new HttpEntity<>(jsonObj, headers);
+        ResponseEntity<String> response = restTemplate.exchange("http://" + daasUri + "/api/v2/daas/meta/dataQuality/saveData", HttpMethod.POST, requestEntity, String.class);
+        logger.info(response.getBody());
+    }
+
+    private String getSinkTableName(String dataSetId, String mediumType, String taskId) {
+        HttpHeaders headers = new HttpHeaders();
+        MediaType type = MediaType.parseMediaType("application/json; charset=UTF-8");
+        headers.setContentType(type);
+        headers.add("Accept", MediaType.APPLICATION_JSON.toString());
+        Map<String, Object> parameter = new HashMap<>();
+        parameter.put("dataSetId", dataSetId);
+        parameter.put("mediumType", mediumType);
+        parameter.put("taskId", taskId);
+        String jsonObj = JSONObject.toJSONString(parameter);
+        HttpEntity<String> requestEntity = new HttpEntity<>(jsonObj, headers);
+        ResponseEntity<String> response = restTemplate.exchange("http://" + daasUri + "/api/v2/daas/meta/dataQuality/getSinkTable", HttpMethod.POST, requestEntity, String.class);
+        logger.info(response.getBody());
+        Map map = JSON.parseObject(response.getBody(), Map.class);
+        return (String) ((Map) ((Map) map.get("result")).get("data")).get("sinkTableName");
+    }
+
+    private void recall(TaskVo taskVo) {
+        RestTemplate restTemplate = new RestTemplate();
+        HttpHeaders headers = new HttpHeaders();
+        MediaType type = MediaType.parseMediaType("application/json; charset=UTF-8");
+        headers.setContentType(type);
+        headers.add("Accept", MediaType.APPLICATION_JSON.toString());
+        String jsonObj = JSONObject.toJSONString(taskVo);
+        HttpEntity<String> requestEntity = new HttpEntity<>(jsonObj, headers);
+        ResponseEntity<String> response = restTemplate.exchange("http://" + daasUri + "/api/v2/daas/meta/dataQuality/getStatus", HttpMethod.POST, requestEntity, String.class);
+        logger.info(response.getBody());
+    }
 }

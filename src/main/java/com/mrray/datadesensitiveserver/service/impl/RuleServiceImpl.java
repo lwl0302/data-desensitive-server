@@ -1,7 +1,6 @@
 package com.mrray.datadesensitiveserver.service.impl;
 
 import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
 import com.mrray.datadesensitiveserver.entity.domain.Algorithm;
 import com.mrray.datadesensitiveserver.entity.domain.Mode;
 import com.mrray.datadesensitiveserver.entity.domain.Rule;
@@ -94,31 +93,31 @@ public class RuleServiceImpl implements RuleService {
         return new RestResponseBody<>().setData(pageQueryVo);
     }
 
-    @Override
-    public RestResponseBody postRule(RuleDto ruleDto) {
-        RestResponseBody<Map<String, String>> restResponseBody = new RestResponseBody<>();
-        Rule rule = new Rule();
-        BeanUtils.copyProperties(ruleDto, rule);
-        List<String> modes = ruleDto.getModes();
-        List<String> args = ruleDto.getArgs();
-        Map<String, String> checkModes = checkModes(modes, args);
-        if (!ruleDto.getTemporary() && ruleRepository.findByName(ruleDto.getName()).size() > 0) {
-            return restResponseBody.setError("Incorrect name value !");
-        }
-        if (checkModes == null) {
-            return restResponseBody.setError("Incorrect mode values !");
-        }
-        rule.setDetails(JSONObject.toJSONString(checkModes));
-        SysUtils.save(ruleRepository, rule);
-        Map<String, String> map = new HashMap<>();
-        map.put("uuid", rule.getUuid());
-        return restResponseBody.setData(map);
-    }
+    //@Override
+    //public RestResponseBody postRule(RuleDto ruleDto) {
+    //    RestResponseBody<Map<String, String>> restResponseBody = new RestResponseBody<>();
+    //    Rule rule = new Rule();
+    //    BeanUtils.copyProperties(ruleDto, rule);
+    //    List<String> modes = ruleDto.getModes();
+    //    List<String> args = ruleDto.getArgs();
+    //    Map<String, String> checkModes = checkModes(modes, args);
+    //    if (!ruleDto.getTemporary() && ruleRepository.findByName(ruleDto.getName()).size() > 0) {
+    //        return restResponseBody.setError("Incorrect name value !");
+    //    }
+    //    if (checkModes == null) {
+    //        return restResponseBody.setError("Incorrect mode values !");
+    //    }
+    //    rule.setDetails(JSONObject.toJSONString(checkModes));
+    //    SysUtils.save(ruleRepository, rule);
+    //    Map<String, String> map = new HashMap<>();
+    //    map.put("uuid", rule.getUuid());
+    //    return restResponseBody.setData(map);
+    //}
 
     @Override
     public RestResponseBody putRule(String uuid, RuleDto ruleDto) {
         RestResponseBody restResponseBody = new RestResponseBody<>();
-        Rule rule = ruleRepository.findByUuid(uuid);
+       /* Rule rule = ruleRepository.findByUuid(uuid);
         if (rule == null) {
             return restResponseBody.setError("此策略已被删除，请刷新页面后重试");
         }
@@ -134,7 +133,7 @@ public class RuleServiceImpl implements RuleService {
             return restResponseBody.setError("Incorrect mode values !");
         }
         rule.setDetails(JSONObject.toJSONString(checkModes));
-        SysUtils.save(ruleRepository, rule);
+        SysUtils.save(ruleRepository, rule);*/
         return restResponseBody;
     }
 
@@ -146,7 +145,7 @@ public class RuleServiceImpl implements RuleService {
         return restResponseBody;
     }
 
-    private Map<String, String> checkModes(List<String> modes, List<String> args) {
+   /* private Map<String, String> checkModes(List<String> modes, List<String> args) {
         Map<String, String> map = new HashMap<>();
         Set<String> set = new HashSet<>();
         for (int i = 0; i < modes.size(); i++) {
@@ -168,5 +167,5 @@ public class RuleServiceImpl implements RuleService {
         } else {
             return null;
         }
-    }
+    }*/
 }

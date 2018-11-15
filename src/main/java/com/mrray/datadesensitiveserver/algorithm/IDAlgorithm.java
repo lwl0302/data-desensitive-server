@@ -101,7 +101,7 @@ public class IDAlgorithm implements BaseAlgorithm {
         return sum;
     }
 
-    public List<String> IDone(List<String> values, String mask) {
+    public List<String> IDone(List<String> values) {
         List<String> result = new ArrayList<>();
         for (String value : values) {
             if (StringUtils.isBlank(value)) {
@@ -110,16 +110,16 @@ public class IDAlgorithm implements BaseAlgorithm {
             }
             int length = value.length();
             if (length == 15) {
-                value = value.substring(0, 6) + SysUtils.buildMask(mask, 9);
+                value = value.substring(0, 6) + SysUtils.buildMask("*", 9);
             } else if (length == 18) {
-                value = value.substring(0, 6) + SysUtils.buildMask(mask, 12);
+                value = value.substring(0, 6) + SysUtils.buildMask("*", 12);
             }
             result.add(value);
         }
         return result;
     }
 
-    public List<String> IDtwo(List<String> values, String mask) {
+    public List<String> IDtwo(List<String> values) {
         List<String> result = new ArrayList<>();
         for (String value : values) {
             if (StringUtils.isBlank(value)) {
@@ -128,16 +128,16 @@ public class IDAlgorithm implements BaseAlgorithm {
             }
             int length = value.length();
             if (length == 15) {
-                value = SysUtils.buildMask(mask, 6) + value.substring(6, 12) + SysUtils.buildMask(mask, 3);
+                value = SysUtils.buildMask("*", 6) + value.substring(6, 12) + SysUtils.buildMask("*", 3);
             } else if (length == 18) {
-                value = SysUtils.buildMask(mask, 6) + value.substring(6, 14) + SysUtils.buildMask(mask, 4);
+                value = SysUtils.buildMask("*", 6) + value.substring(6, 14) + SysUtils.buildMask("*", 4);
             }
             result.add(value);
         }
         return result;
     }
 
-    public List<String> IDthree(List<String> values, String mask) {
+    public List<String> IDthree(List<String> values) {
         List<String> result = new ArrayList<>();
         for (String value : values) {
             if (StringUtils.isBlank(value)) {
@@ -146,9 +146,9 @@ public class IDAlgorithm implements BaseAlgorithm {
             }
             int length = value.length();
             if (length == 15) {
-                value = value.substring(0, 12) + SysUtils.buildMask(mask, 3);
+                value = value.substring(0, 12) + SysUtils.buildMask("*", 3);
             } else if (length == 18) {
-                value = value.substring(0, 14) + SysUtils.buildMask(mask, 4);
+                value = value.substring(0, 14) + SysUtils.buildMask("*", 4);
             }
             result.add(value);
         }

@@ -1,16 +1,14 @@
 package com.mrray.datadesensitiveserver.service;
 
-import com.mrray.datadesensitiveserver.entity.dto.ScanDto;
-import com.mrray.datadesensitiveserver.entity.dto.ScanSingleDto;
 import com.mrray.datadesensitiveserver.entity.dto.SetColumnsDto;
 import com.mrray.datadesensitiveserver.entity.vo.RestResponseBody;
 
 import java.util.ArrayList;
 
 public interface ScanService {
-    RestResponseBody scan(ScanDto scanDto);
+    //RestResponseBody scan(ScanDto scanDto);
 
-    RestResponseBody scanSingle(ScanSingleDto scanSingleDto);
+    //RestResponseBody scanSingle(ScanSingleDto scanSingleDto);
 
     RestResponseBody column(SetColumnsDto setColumnsDto);
 

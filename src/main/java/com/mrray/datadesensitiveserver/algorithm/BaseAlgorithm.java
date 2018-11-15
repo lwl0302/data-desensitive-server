@@ -1,13 +1,10 @@
 package com.mrray.datadesensitiveserver.algorithm;
 
-import com.mrray.datadesensitiveserver.encryp.*;
-import com.mrray.datadesensitiveserver.utils.SysUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.List;
 
 public interface BaseAlgorithm {
@@ -43,12 +40,12 @@ public interface BaseAlgorithm {
             //result.forEach(System.out::println);
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
-            return new ArrayList<>();
+            return values;
         }
         return result;
     }
 
-    default List<String> DES(List<String> values) {
+    /*default List<String> DES(List<String> values) {
         List<String> result = new ArrayList<>();
         for (String value : values) {
             try {
@@ -106,6 +103,5 @@ public interface BaseAlgorithm {
             }
         }
         return result;
-    }
-
+    }*/
 }

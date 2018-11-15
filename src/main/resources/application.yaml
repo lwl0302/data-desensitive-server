@@ -1,38 +1,19 @@
 spring:
-  datasource:
-    url: jdbc:mysql://192.168.125.3:3306/dds?characterEncoding=utf8&useSSL=true&serverTimezone=CTT&createDatabaseIfNotExist=true
-    username: root
-    password: root20180315
-    driver-class-name: org.gjt.mm.mysql.Driver
   jpa:
-    database: mysql
     show-sql: false
-    hibernate:
-      ddl-auto: update
-      dialect: org.hibernate.dialect.MySQL5Dialect
+    database-platform: com.mrray.datadesensitiveserver.config.SQLiteDialect
+    generate-ddl: true
   application:
     name: data-desensitive-server
 
-ribbon:
-  ReadTimeout: 60000
-  ConnectTimeout: 60000
+sqlite:
+  dbName: a.db
 
 server:
-  port: 50002
-
-eureka:
-  client:
-    healthcheck:
-      enable: true
-    service-url:
-      defaultZone: http://localhost:1111/eureka
-  instance:
-    prefer-ip-address: true
+  port: 8080
 
 constant:
-  rows: 10000
-  samples: 1000
-keys:
-  DES: 8866200616411960574122434059469100235892702736860872901247123456
-  DESede: 468758874458578687135428
-  AES: 8f60c8102d29fcd525162d02eed4566b
+  rows: 10000 #每次脱敏处理行数
+  samples: 1000 #样本行数
+
+daas-uri: daas-meta0.tpaas.youedata.com

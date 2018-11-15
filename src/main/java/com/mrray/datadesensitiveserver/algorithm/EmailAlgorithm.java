@@ -27,7 +27,7 @@ public class EmailAlgorithm implements BaseAlgorithm {
         return nonRepetitive >= 100 || count > 0.5 * values.size();
     }
 
-    public List<String> emailone(List<String> values, String mask) {
+    public List<String> emailone(List<String> values) {
         List<String> result = new ArrayList<>();
         for (String value : values) {
             if (StringUtils.isBlank(value)) {
@@ -38,7 +38,7 @@ public class EmailAlgorithm implements BaseAlgorithm {
                 int index = value.indexOf('@');
                 StringBuilder stringBuilder = new StringBuilder();
                 for (int i = 0; i < index; i++) {
-                    stringBuilder.append(mask);
+                    stringBuilder.append("*");
                 }
                 stringBuilder.append(value.substring(index));
                 value = stringBuilder.toString();

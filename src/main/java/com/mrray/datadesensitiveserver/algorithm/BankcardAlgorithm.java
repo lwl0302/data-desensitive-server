@@ -51,7 +51,7 @@ public class BankcardAlgorithm implements BaseAlgorithm {
         return (luhmSum % 10 == 0) ? '0' : (char) ((10 - luhmSum % 10) + '0');
     }
 
-    public List<String> bankcardone(List<String> values, String mask) {
+    public List<String> bankcardone(List<String> values) {
         List<String> result = new ArrayList<>();
         for (String value : values) {
             if (StringUtils.isBlank(value)) {
@@ -60,9 +60,9 @@ public class BankcardAlgorithm implements BaseAlgorithm {
             }
             int length = value.length();
             if (length == 16) {
-                value = value.substring(0, 6) + SysUtils.buildMask(mask, 10);
+                value = value.substring(0, 6) + SysUtils.buildMask("*", 10);
             } else if (length == 19) {
-                value = value.substring(0, 6) + SysUtils.buildMask(mask, 13);
+                value = value.substring(0, 6) + SysUtils.buildMask("*", 13);
             }
             result.add(value);
         }

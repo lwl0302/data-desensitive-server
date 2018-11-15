@@ -36,7 +36,7 @@ public class CellphoneAlgorithm implements BaseAlgorithm {
         return nonRepetitive >= 100 || count > 0.5 * values.size();
     }
 
-    public List<String> cellphoneone(List<String> values, String mask) {
+    public List<String> cellphoneone(List<String> values) {
         List<String> result = new ArrayList<>();
         for (String value : values) {
             if (StringUtils.isBlank(value)) {
@@ -44,14 +44,14 @@ public class CellphoneAlgorithm implements BaseAlgorithm {
                 continue;
             }
             if (value.length() == 11) {
-                value = value.substring(0, 3) + SysUtils.buildMask(mask, 4) + value.substring(7, 11);
+                value = value.substring(0, 3) + SysUtils.buildMask("*", 4) + value.substring(7, 11);
             }
             result.add(value);
         }
         return result;
     }
 
-    public List<String> cellphonetwo(List<String> values, String mask) {
+    public List<String> cellphonetwo(List<String> values) {
         List<String> result = new ArrayList<>();
         for (String value : values) {
             if (StringUtils.isBlank(value)) {
@@ -59,7 +59,7 @@ public class CellphoneAlgorithm implements BaseAlgorithm {
                 continue;
             }
             if (value.length() == 11) {
-                value = value.substring(0, 7) + SysUtils.buildMask(mask, 4);
+                value = value.substring(0, 7) + SysUtils.buildMask("*", 4);
             }
             result.add(value);
         }

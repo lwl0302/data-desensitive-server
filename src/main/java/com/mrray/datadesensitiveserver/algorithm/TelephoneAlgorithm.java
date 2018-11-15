@@ -27,9 +27,9 @@ public class TelephoneAlgorithm implements BaseAlgorithm {
         return nonRepetitive >= 100 || count > 0.5 * values.size();
     }
 
-    public List<String> telephoneone(List<String> values, String mask) {
+    public List<String> telephoneone(List<String> values) {
         List<String> result = new ArrayList<>();
-        String x = SysUtils.buildMask(mask, 8);
+        String x = SysUtils.buildMask("*", 8);
         for (String value : values) {
             if (StringUtils.isBlank(value)) {
                 result.add(value);
@@ -48,9 +48,9 @@ public class TelephoneAlgorithm implements BaseAlgorithm {
         return result;
     }
 
-    public List<String> telephonetwo(List<String> values, String mask) {
+    public List<String> telephonetwo(List<String> values) {
         List<String> result = new ArrayList<>();
-        String x = SysUtils.buildMask(mask, 6);
+        String x = SysUtils.buildMask("*", 6);
         for (String value : values) {
             if (StringUtils.isBlank(value)) {
                 result.add(value);

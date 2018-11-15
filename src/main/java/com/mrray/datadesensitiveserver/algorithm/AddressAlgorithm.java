@@ -39,7 +39,7 @@ public class AddressAlgorithm implements BaseAlgorithm {
         return count >= 3;
     }
 
-    public List<String> addressone(List<String> values, String mask) {
+    public List<String> addressone(List<String> values) {
         List<String> result = new ArrayList<>();
         for (String value : values) {
             if (StringUtils.isBlank(value)) {
@@ -49,18 +49,18 @@ public class AddressAlgorithm implements BaseAlgorithm {
             int c = value.indexOf('市');
             int p = value.indexOf('省');
             if (c != -1) {
-                value = mask(value, c, mask);
+                value = mask(value, c);
             } else if (p != -1) {
-                value = mask(value, p, mask);
+                value = mask(value, p);
             } else {
-                value = mask(value, -1, mask);
+                value = mask(value, -1);
             }
             result.add(value);
         }
         return result;
     }
 
-    public List<String> addresstwo(List<String> values, String mask) {
+    public List<String> addresstwo(List<String> values) {
         List<String> result = new ArrayList<>();
         for (String value : values) {
             if (StringUtils.isBlank(value)) {
@@ -71,27 +71,27 @@ public class AddressAlgorithm implements BaseAlgorithm {
             int p = value.indexOf('省');
             int a = value.indexOf('区');
             if (a != -1) {
-                value = mask(value, a, mask);
+                value = mask(value, a);
             } else if (c != -1) {
-                value = mask(value, c, mask);
+                value = mask(value, c);
             } else if (p != -1) {
-                value = mask(value, p, mask);
+                value = mask(value, p);
             } else {
-                value = mask(value, -1, mask);
+                value = mask(value, -1);
             }
             result.add(value);
         }
         return result;
     }
 
-    private static String mask(String value, int p, String mask) {
+    private static String mask(String value, int p) {
         StringBuilder temp = new StringBuilder(value.substring(0, p + 1));
         for (int i = p + 1; i < value.length(); i++) {
             String s = Character.toString(value.charAt(i));
             if (SIGNS.contains(s) || KEYWORDS.contains(s)) {
                 temp.append(s);
             } else {
-                temp.append(mask);
+                temp.append("*");
             }
         }
         return temp.toString();

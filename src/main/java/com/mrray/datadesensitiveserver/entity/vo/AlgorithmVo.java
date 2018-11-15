@@ -5,7 +5,7 @@ import java.util.Map;
 
 public class AlgorithmVo {
     private String name;
-    private String description;
+    //private String description;
     private Boolean original;
     private String uuid;
     private List<Map<String, Object>> modes;
@@ -34,13 +34,13 @@ public class AlgorithmVo {
         this.name = name;
     }
 
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
+    //public String getDescription() {
+    //    return description;
+    //}
+    //
+    //public void setDescription(String description) {
+    //    this.description = description;
+    //}
 
     public Boolean getOriginal() {
         return original;
