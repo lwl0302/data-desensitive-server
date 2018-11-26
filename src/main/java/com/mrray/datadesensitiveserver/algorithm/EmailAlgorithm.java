@@ -47,4 +47,11 @@ public class EmailAlgorithm implements BaseAlgorithm {
         }
         return result;
     }
+
+    public static void main(String[] args) {
+        String s = "dsadwe@163.com";
+        if (s.contains("@") && s.matches(REGEX)) {
+            System.out.println(1);
+        }
+    }
 }

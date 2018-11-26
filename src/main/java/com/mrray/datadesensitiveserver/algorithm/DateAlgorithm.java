@@ -9,9 +9,10 @@ import java.util.*;
 public class DateAlgorithm implements BaseAlgorithm {
     private static final List<String> SIGNS = Arrays.asList("时", "秒", "分", "h", "m", "s", "H", "M", "S", ":");
 
+    private static SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
     @Override
     public boolean match(List<String> values) {
-        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         int count = 0;
         Set<String> matched = new HashSet<>();
         for (String s : values) {
@@ -101,22 +102,26 @@ public class DateAlgorithm implements BaseAlgorithm {
 
     public List<String> dateone(List<String> values) {
         List<String> result = new ArrayList<>();
+        long time = new Date().getTime();
+        String format = simpleDateFormat.format(time);
         for (String value : values) {
             if (StringUtils.isBlank(value)) {
                 result.add(value);
                 continue;
             }
             int length = value.length();
-            if ((length == 10 || length == 13) && value.matches("^[0-9]*$")) {
-                value = "0";
+            if (length == 13 && value.matches("^[0-9]*$")) {
+                value = time + "";
+            } else if (length == 10 && value.matches("^[0-9]*$")) {
+                value = (time + "").substring(0, 10);
             } else if (length >= 5 && length <= 12) {
                 if (value.contains(":")) {
-                    value = "00:00:00";
+                    value = format.substring(11);
                 } else {
-                    value = "2018-01-01";
+                    value = format.substring(0, 10);
                 }
             } else {
-                value = "2018-01-01 00:00:00";
+                value = format;
             }
             result.add(value);
         }

@@ -172,4 +172,9 @@ public class IDAlgorithm implements BaseAlgorithm {
         }
         return result;
     }
+
+    public static void main(String[] args) {
+        String s="510402199605260321";
+        System.out.println(isValidate18(s));
+    }
 }

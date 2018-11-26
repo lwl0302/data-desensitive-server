@@ -9,6 +9,17 @@ public class TaskDto {
     private List<String> modes;
     private String accessTaskName;
 
+    private String accessToken;
+
+    public String getAccessToken() {
+        return accessToken;
+    }
+
+    public TaskDto setAccessToken(String accessToken) {
+        this.accessToken = accessToken;
+        return this;
+    }
+
     public String getAccessTaskName() {
         return accessTaskName;
     }

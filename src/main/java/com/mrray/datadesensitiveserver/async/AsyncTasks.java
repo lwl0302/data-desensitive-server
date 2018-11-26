@@ -55,16 +55,17 @@ public class AsyncTasks {
         String mediumType = taskDto.getMediumType();
         String dataSetId = taskDto.getDataSetId();
         String taskId = taskDto.getTaskId();
-        Map<String, Object> sampleData = getData(dataSetId, mediumType, columns, 1, samples);
+        String accessToken = taskDto.getAccessToken();
+        Map<String, Object> sampleData = getData(dataSetId, mediumType, accessToken, columns, 1, samples);
         if (sampleData == null) {
             logger.error("failed to get samples");
-            recall(taskVo.setStatus(500));
+            recall(taskVo.setStatus(500), accessToken);
             return;
         }
         //获取目标表行数
         int total = (int) sampleData.get("total");
         //String sinkTableName = (String) sampleData.get("sinkTableName");
-        String sinkTableName = getSinkTableName(dataSetId, mediumType, taskId);
+        String sinkTableName = getSinkTableName(dataSetId, mediumType, taskId, accessToken);
         taskVo.setSinkCatalog(sinkTableName);
         logger.info("行数 " + total);
         //敏感字段识别
@@ -96,10 +97,10 @@ public class AsyncTasks {
                 size = rows;
             }
             //查询数据放入columns
-            Map<String, Object> data = getData(dataSetId, mediumType, columns, page, rows);
+            Map<String, Object> data = getData(dataSetId, mediumType, accessToken, columns, page, rows);
             if (data == null) {
                 logger.error("failed to get data");
-                recall(taskVo.setStatus(500));
+                recall(taskVo.setStatus(500), accessToken);
                 return;
             }
             logger.info("get value success");
@@ -132,7 +133,7 @@ public class AsyncTasks {
                 } catch (Throwable e) {
                     e.printStackTrace();
                     logger.error("fail");
-                    recall(taskVo.setStatus(500));
+                    recall(taskVo.setStatus(500), accessToken);
                     return;
                 }
             }
@@ -152,18 +153,19 @@ public class AsyncTasks {
                 }
                 valuesToInsert.add(row);
             }
-            saveData(valuesToInsert, dataSetId, sinkTableName, mediumType);
+            saveData(valuesToInsert, dataSetId, sinkTableName, mediumType, accessToken);
             total -= rows;
             page++;
         }
-        recall(taskVo.setStatus(200));
+        recall(taskVo.setStatus(200), accessToken);
     }
 
-    private Map<String, Object> getData(String dataSetId, String mediumType, List<Map<String, Object>> columns, int page, int size) {
+    private Map<String, Object> getData(String dataSetId, String mediumType, String accessToken, List<Map<String, Object>> columns, int page, int size) {
         HttpHeaders headers = new HttpHeaders();
         MediaType type = MediaType.parseMediaType("application/json; charset=UTF-8");
         headers.setContentType(type);
         headers.add("Accept", MediaType.APPLICATION_JSON.toString());
+        headers.add("accessToken", accessToken);
         Map<String, Object> parameter = new HashMap<>();
         parameter.put("dataSetId", dataSetId);
         parameter.put("mediumType", mediumType);
@@ -238,11 +240,12 @@ public class AsyncTasks {
         }
     }
 
-    private void saveData(List<Map<Object, String>> datas, String dataSetId, String sinkTableName, String mediumType) {
+    private void saveData(List<Map<Object, String>> datas, String dataSetId, String sinkTableName, String mediumType, String accessToken) {
         HttpHeaders headers = new HttpHeaders();
         MediaType type = MediaType.parseMediaType("application/json; charset=UTF-8");
         headers.setContentType(type);
         headers.add("Accept", MediaType.APPLICATION_JSON.toString());
+        headers.add("accessToken", accessToken);
         Map<String, Object> parameter = new HashMap<>();
         parameter.put("dataSetId", dataSetId);
         parameter.put("sinkTableName", sinkTableName);
@@ -254,11 +257,12 @@ public class AsyncTasks {
         logger.info(response.getBody());
     }
 
-    private String getSinkTableName(String dataSetId, String mediumType, String taskId) {
+    private String getSinkTableName(String dataSetId, String mediumType, String taskId, String accessToken) {
         HttpHeaders headers = new HttpHeaders();
         MediaType type = MediaType.parseMediaType("application/json; charset=UTF-8");
         headers.setContentType(type);
         headers.add("Accept", MediaType.APPLICATION_JSON.toString());
+        headers.add("accessToken", accessToken);
         Map<String, Object> parameter = new HashMap<>();
         parameter.put("dataSetId", dataSetId);
         parameter.put("mediumType", mediumType);
@@ -271,12 +275,13 @@ public class AsyncTasks {
         return (String) ((Map) ((Map) map.get("result")).get("data")).get("sinkTableName");
     }
 
-    private void recall(TaskVo taskVo) {
+    private void recall(TaskVo taskVo, String accessToken) {
         RestTemplate restTemplate = new RestTemplate();
         HttpHeaders headers = new HttpHeaders();
         MediaType type = MediaType.parseMediaType("application/json; charset=UTF-8");
         headers.setContentType(type);
         headers.add("Accept", MediaType.APPLICATION_JSON.toString());
+        headers.add("accessToken", accessToken);
         String jsonObj = JSONObject.toJSONString(taskVo);
         HttpEntity<String> requestEntity = new HttpEntity<>(jsonObj, headers);
         ResponseEntity<String> response = restTemplate.exchange("http://" + daasUri + "/api/v2/daas/meta/dataQuality/getStatus", HttpMethod.POST, requestEntity, String.class);
